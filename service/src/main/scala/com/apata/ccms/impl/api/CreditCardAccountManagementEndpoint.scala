@@ -2,8 +2,8 @@ package com.apata.ccms.impl.api
 
 import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{Directive1, MalformedRequestContentRejection, RejectionHandler, Route}
-import com.apata.ccms.core.account.{AccountException, AccountExceptions, AccountService}
+import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
+import com.apata.ccms.core.account.{AccountExceptions, AccountService}
 import com.apata.ccms.core.api.HttpEndpoint
 import com.apata.ccms.core.requests.{AccountCreationRequest, ChargeRequest, CreditRequest, UpdateCreditLimitRequest}
 import com.apata.ccms.core.transactions.{TransactionExceptions, TransactionService}
@@ -17,7 +17,7 @@ import scala.util.{Failure, Success, Try}
 
 
 /**
- *  Endpoint for the management of Credit Card Accounts
+ * Endpoint for the management of Credit Card Accounts
  */
 class CreditCardAccountManagementEndpoint(accountService: AccountService, transactionService: TransactionService) extends HttpEndpoint {
 
@@ -32,17 +32,17 @@ class CreditCardAccountManagementEndpoint(accountService: AccountService, transa
   override def route: Route = handleRejections(rejectionHandler)(simpleRoute)
 
   private def simpleRoute: Route = pathPrefix("credit-cards") {
-      concat (
-        baseCreditCardRoute,
-        chargeRoute,
-        creditRoute,
-        individualCreditCardRoute
-      )
-    }
+    concat(
+      baseCreditCardRoute,
+      chargeRoute,
+      creditRoute,
+      individualCreditCardRoute
+    )
+  }
 
   private val baseCreditCardRoute = pathEndOrSingleSlash {
     // Get all credit card accounts
-    concat (
+    concat(
       get {
         onComplete(accountService.getAllAccounts) {
           case Failure(exception) => exception match {
@@ -94,65 +94,65 @@ class CreditCardAccountManagementEndpoint(accountService: AccountService, transa
     }
   }
 
-    private val creditRoute = path("credit") {
-      pathEnd {
-        // Credit to credit card
-        post {
-          entity(as[CreditRequest]) { creditRequest =>
-            onComplete(transactionService.creditToCard(creditRequest)) {
-              marshallResponseForAction(
-                action = "credit request",
-                successMessage = "Card successfully credited."
-              )
-            }
+  private val creditRoute = path("credit") {
+    pathEnd {
+      // Credit to credit card
+      post {
+        entity(as[CreditRequest]) { creditRequest =>
+          onComplete(transactionService.creditToCard(creditRequest)) {
+            marshallResponseForAction(
+              action = "credit request",
+              successMessage = "Card successfully credited."
+            )
           }
         }
       }
     }
+  }
 
-    private val individualCreditCardRoute = path(LongNumber) { id =>
-      pathEnd {
-        concat(
-          // Get credit card account by ID
-          get {
-            onComplete(accountService.getAccountById(id)) {
-              case Failure(exception) => exception match {
-                case ex: AccountExceptions.AccountRequestFailed =>
-                  logger.error(s"Account request failed during account retrieval: ${ex.getMessage}")
-                  complete(StatusCodes.InternalServerError, ex.getMessage)
-                case ex =>
-                  logger.error(s"Unknown Exception encountered during account creation request: $ex")
-                  complete(StatusCodes.InternalServerError, "Encountered unknown error during request processing.")
-              }
-              case Success(account) =>
-                complete(StatusCodes.OK, account.asJson)
+  private val individualCreditCardRoute = path(LongNumber) { id =>
+    pathEnd {
+      concat(
+        // Get credit card account by ID
+        get {
+          onComplete(accountService.getAccountById(id)) {
+            case Failure(exception) => exception match {
+              case ex: AccountExceptions.AccountRequestFailed =>
+                logger.error(s"Account request failed during account retrieval: ${ex.getMessage}")
+                complete(StatusCodes.InternalServerError, ex.getMessage)
+              case ex =>
+                logger.error(s"Unknown Exception encountered during account creation request: $ex")
+                complete(StatusCodes.InternalServerError, "Encountered unknown error during request processing.")
             }
-          },
+            case Success(account) =>
+              complete(StatusCodes.OK, account.asJson)
+          }
+        },
 
-          // Change credit limit for account by ID
-          put {
-            parameter("newCreditLimit".as[Int]) { newCreditLimit =>
-              onComplete(accountService.updateAccountCreditLimit(UpdateCreditLimitRequest(newCreditLimit, id))) {
-                marshallResponseForAction(
-                  action = "credit limit update",
-                  successMessage = "Credit limit successfully updated"
-                )
-              }
-            }
-          },
-
-          // Delete credit card by ID
-          delete {
-            onComplete(accountService.deleteAccount(id)) {
+        // Change credit limit for account by ID
+        put {
+          parameter("newCreditLimit".as[Int]) { newCreditLimit =>
+            onComplete(accountService.updateAccountCreditLimit(UpdateCreditLimitRequest(newCreditLimit, id))) {
               marshallResponseForAction(
-                action = "account deletion",
-                successMessage = "Credit Card Account successfully deleted"
+                action = "credit limit update",
+                successMessage = "Credit limit successfully updated"
               )
             }
           }
-        )
-      }
+        },
+
+        // Delete credit card by ID
+        delete {
+          onComplete(accountService.deleteAccount(id)) {
+            marshallResponseForAction(
+              action = "account deletion",
+              successMessage = "Credit Card Account successfully deleted"
+            )
+          }
+        }
+      )
     }
+  }
 
   // Use to simplify marshalling of exceptions. Currently only use for endpoints not returning an entity that needs encoding. Expand for these cases later
   private def marshallResponseForAction[T](action: String, successMessage: String, successStatus: StatusCode = StatusCodes.OK): PartialFunction[Try[T], Route] = {

@@ -3,7 +3,7 @@ package com.apata.ccms.impl.account
 import akka.Done
 import com.apata.ccms.core.CreditCardAccount
 import com.apata.ccms.core.account.{AccountExceptions, AccountService}
-import com.apata.ccms.core.db.{CreditCardAccountDB, CreditCardDB, DBException, Dao}
+import com.apata.ccms.core.db.{CreditCardAccountDB, CreditCardDB, DBException, DBExceptions, Dao}
 import com.apata.ccms.core.requests.{AccountCreationRequest, UpdateCreditLimitRequest}
 import com.apata.ccms.encryption.EncryptionService
 import com.apata.ccms.impl.util.{CreditCardAccountUtils, HashUtil, ValidationUtils}
@@ -44,12 +44,15 @@ class AccountServiceImpl(dao: Dao, encryptionService: EncryptionService)
         case exception: AccountExceptions.InvalidCreationRequest =>
           logger.error(s"Validation failed for account creation: ${exception.getMessage}")
           throw exception
+        case DBExceptions.CardAlreadyExistsException =>
+          logger.error("Account creation failed. Account exists for the supplied card.")
+          throw AccountExceptions.InvalidCreationRequest("Account exists for the supplied card.")
         case exception: DBException =>
           logger.error(s"Account creation failed due to DB exception: ${exception.getMessage}")
-          throw AccountExceptions.AccountRequestFailed("Could not process request due to a DB error.")
+          throw AccountExceptions.InvalidCreationRequest("Could not process request due to a DB error.")
         case exception =>
           logger.error(s"Account creation failed due to unexpected exception: ${exception.getMessage}")
-          throw AccountExceptions.AccountRequestFailed("Could not process request due to an unexpected error.")
+          throw AccountExceptions.InvalidCreationRequest("Could not process request due to an unexpected error.")
       }
       .andThen {
         case Success(value) =>

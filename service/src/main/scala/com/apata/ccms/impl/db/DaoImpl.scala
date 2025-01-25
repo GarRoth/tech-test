@@ -12,17 +12,30 @@ import scala.concurrent.{ExecutionContext, Future}
 class DaoImpl(db: Database)(implicit executionContext: ExecutionContext) extends Dao with StrictLogging {
 
   override def create(account: CreditCardAccountDB, creditCardDB: CreditCardDB): Future[Long] = {
+    val checkCardExistsAction = Cards.filter(_.hashedCardNumber === creditCardDB.hashedCardNumber).result.headOption
     val insertAccountAction = Accounts returning Accounts.map(_.id) into ((account: CreditCardAccountDB, id: Long) => account.copy(id = id)) += account
 
     val insertAction = for {
-      insertedAccount <- insertAccountAction
-      _ <-  Cards += creditCardDB.copy(accountId = insertedAccount.id)
-    } yield insertedAccount.id
+      existingCard <- checkCardExistsAction
+      result <- existingCard match {
+        case Some(_) =>
+
+          DBIO.failed(DBExceptions.CardAlreadyExistsException)
+        case None =>
+          for {
+            insertedAccount <- insertAccountAction
+            _ <- Cards += creditCardDB.copy(accountId = insertedAccount.id)
+          } yield insertedAccount.id
+      }
+    } yield result
 
     db.run(insertAction.transactionally)
       .recoverWith {
+        case DBExceptions.CardAlreadyExistsException =>
+          logger.error(s"DB insert operation failed as Credit Card already exists")
+          Future.failed(DBExceptions.CardAlreadyExistsException)
         case exception =>
-          logger.info(s"DB insert operation Failed: ${exception.getMessage}")
+          logger.error(s"DB insert operation Failed: ${exception.getMessage}")
           Future.failed(DBExceptions.UnexpectedDBException)
       }
   }
@@ -55,10 +68,7 @@ class DaoImpl(db: Database)(implicit executionContext: ExecutionContext) extends
   }
 
   override def findByCardNumber(cardNumber: String): Future[Option[(CreditCardAccountDB, CreditCardDB)]] = {
-    val query = for {
-      (account, card) <- Accounts join Cards on (_.id === _.accountId)
-      if card.hashedCardNumber === HashUtil.hash(cardNumber)
-    } yield (account, card)
+    val query = findByCardNumberAction(cardNumber)
 
     db.run(query.result.headOption)
       .recoverWith {
@@ -66,6 +76,13 @@ class DaoImpl(db: Database)(implicit executionContext: ExecutionContext) extends
           logger.info(s"DB find query failed: ${exception.getMessage}")
           Future.failed(DBExceptions.UnexpectedDBException)
       }
+  }
+
+  private def findByCardNumberAction(cardNumber: String): Query[(DBSchema.CreditCardAccounts, DBSchema.CreditCards), (CreditCardAccountDB, CreditCardDB), Seq] = {
+    for {
+      (account, card) <- Accounts join Cards on (_.id === _.accountId)
+      if card.hashedCardNumber === HashUtil.hash(cardNumber)
+    } yield (account, card)
   }
 
   override def updateAccountCreditLimit(accountId: Long, newCreditLimit: Long): Future[Int] = {

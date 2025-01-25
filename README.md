@@ -56,6 +56,7 @@ Once the container is running, you can interact with the application through its
              }
            }'
   ```
+  For ease of use it's recommended to use an API development tool, for exmaple: [Postman](https://www.postman.com/) see example
 
 ## Project Structure
 
@@ -65,3 +66,85 @@ Once the container is running, you can interact with the application through its
 
 ---
 
+## **Endpoint List**
+
+### **Base Path**: `/credit-cards`
+
+1. **GET** `/credit-cards`
+    - Retrieves all credit card accounts.
+
+2. **POST** `/credit-cards`
+    - Creates a new credit card account.  
+      **Example Payload:**
+      ```json
+      {
+        "cardholderName": "Jake Peralta",
+        "creditLimit": 500,
+        "currency": "EUR",
+        "creditCard": {
+          "cardNumber": "4111111111111111",
+          "expiry": "12/25",
+          "cvv": 123,
+          "cardType": "VISA"
+        }
+      }
+      ```
+
+3. **POST** `/credit-cards/charge`
+    - Charges a credit card account for a specified amount.  
+      **Example Payload:**
+      ```json
+      {
+        "amount": 100,
+        "cardNumber": "4111111111111111"
+      }
+      ```
+
+4. **POST** `/credit-cards/credit`
+    - Credits a credit card account for a specified amount.  
+      **Example Payload:**
+      ```json
+      {
+        "amount": 50,
+        "cardNumber": "4111111111111111"
+      }
+      ```
+
+5. **GET** `/credit-cards/{id}`
+    - Retrieves a specific credit card account by its unique ID.
+
+6. **PUT** `/credit-cards/{id}?newCreditLimit={value}`
+    - Updates the credit limit for a specific account.  
+      **Query Parameter:**
+        - `newCreditLimit`: The new credit limit value (Int).
+
+7. **DELETE** `/credit-cards/{id}`
+    - Deletes a specific credit card account by its unique ID.
+
+
+## Design Notes and Future Improvements
+### Security
+Security is a key concern when handling sensitive information like card data. Because of this, the card number is encrypted at rest.
+However, one crucial improvement would be enforcing TLS for all communications to prevent traffic interception, such as eavesdropping or man-in-the-middle attacks. 
+Additionally, the use of Slick for database operations enhances security by preventing SQL injection through type-safe query composition and parameterized queries, ensuring user input is handled safely.
+### Error Handling
+This design emphasizes clear separation of layers (API, Service, and DB), with each layer defining its own domain-specific errors. 
+This separation creates a robust contract between layers, preventing domain logic from bleeding across boundaries. 
+It also facilitates precise and meaningful error handling at each layer, ensuring errors are appropriately captured and handled without exposing sensitive internal details.
+
+
+### Performance
+The application uses two thread pools for processing: 
+ - Http Dispatcher: Manages Http Processes
+ - Default dispatcher: Manages service processes
+This was set up in such a way that it would be possible to further bulkhead different sections of the application, 
+ensuring that no single aspect of the application can prevent others from functioning.
+
+Another performance consideration was lookups by card number. 
+As we have to encrypt the card at rest, a lookup instantly becomes more expensive. 
+Because of this, a second column was added with an index, that is a one-way has of the card number. 
+This was the card number is still secure at rest, but lookups by the card number are slightly optimised.
+
+
+## Assumptions 
+A few assumptions were made based off of the 

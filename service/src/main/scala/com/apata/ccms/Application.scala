@@ -36,9 +36,8 @@ class Application(applicationConfig: ApplicationConfig)
   def run(): Future[Done] = {
     logger.info(s"Starting Application ${applicationConfig.service.name}")
 
-    httpService.start() //Coordinate this better
+    httpService.start()
 
-    //TODO Make sure to add coord shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "shutdown") { () =>
       logger.info(s"Terminating ${applicationConfig.service.name}")
       Future.successful(Done)
