@@ -17,8 +17,8 @@ Follow these steps to get the application up and running:
 1. Clone the repository:
 
    ```bash
-   git clone 
-   cd 
+   git clone https://github.com/GarRoth/tech-test.git
+   cd tech-test
    ```
 
 2. Build the project:
@@ -71,7 +71,7 @@ Once the container is running, you can interact with the application through its
 ### **Base Path**: `/credit-cards`
 
 1. **GET** `/credit-cards`
-    - Retrieves all credit card accounts.
+    - Retrieves all credit card accounts. (Note sensitive fields are masked in returned values)
 
 2. **POST** `/credit-cards`
     - Creates a new credit card account.  
@@ -127,6 +127,7 @@ Once the container is running, you can interact with the application through its
 Security is a key concern when handling sensitive information like card data. Because of this, the card number is encrypted at rest.
 However, one crucial improvement would be enforcing TLS for all communications to prevent traffic interception, such as eavesdropping or man-in-the-middle attacks. 
 Additionally, the use of Slick for database operations enhances security by preventing SQL injection through type-safe query composition and parameterized queries, ensuring user input is handled safely.
+
 ### Error Handling
 This design emphasizes clear separation of layers (API, Service, and DB), with each layer defining its own domain-specific errors. 
 This separation creates a robust contract between layers, preventing domain logic from bleeding across boundaries. 
@@ -144,7 +145,3 @@ Another performance consideration was lookups by card number.
 As we have to encrypt the card at rest, a lookup instantly becomes more expensive. 
 Because of this, a second column was added with an index, that is a one-way has of the card number. 
 This was the card number is still secure at rest, but lookups by the card number are slightly optimised.
-
-
-## Assumptions 
-A few assumptions were made based off of the 
