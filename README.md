@@ -39,12 +39,6 @@ Follow these steps to get the application up and running:
 
 Once the container is running, you can interact with the application through its exposed endpoints. For example:
 
-- **Health Check (GET)**:
-
-  ```bash
-  curl http://localhost:9000/health
-  ```
-
 - **Create a Credit Card Account (POST)**:
 
   ```bash
