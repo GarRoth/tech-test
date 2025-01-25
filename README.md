@@ -145,3 +145,12 @@ Another performance consideration was lookups by card number.
 As we have to encrypt the card at rest, a lookup instantly becomes more expensive. 
 Because of this, a second column was added with an index, that is a one-way has of the card number. 
 This was the card number is still secure at rest, but lookups by the card number are slightly optimised.
+
+### Composition Approach
+This Scala project is designed using the Cake Pattern with mixins. 
+This approach strongly supports the separation of concerns by dividing functionality into distinct modules, each responsible for a specific layer or aspect of the application.
+
+Within this structure:
+ - Members specific to a module are defined withn that module's trait.
+ - Other modules or compnoents can "mixin" these traits to access their functionality, enabling clear composition and modularity.
+This design is evident in the *Module traits and the main Application class where the modules are composed into the Application.
